@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de salud</title>
+
+<style>
+body{font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:16px;color:#222;}
+h1{text-align:center;font-size:28px;margin:12px 0;}
+.sub{text-align:center;color:#666;margin-bottom:20px;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+button{border:none;border-radius:20px;padding:22px;font-size:19px;font-weight:bold;background:#222;color:white;}
+button:active{transform:scale(.98);}
+.big button{height:115px;font-size:22px;}
+.secondary{background:#666;}
+.danger{background:#a83232;}
+.green{background:#2e7d32;}
+.blue{background:#1565c0;}
+.orange{background:#ef6c00;}
+.purple{background:#6a1b9a;}
+.card{background:white;margin-top:18px;padding:20px;border-radius:22px;box-shadow:0 4px 12px rgba(0,0,0,.08);}
+.title{font-size:25px;font-weight:bold;margin-bottom:12px;}
+.text{font-size:18px;line-height:1.45;}
+.notice{margin-top:14px;padding:12px;background:#fff1c7;border-radius:12px;font-size:16px;}
+.reminder{margin-top:14px;padding:12px;background:#dff0ff;border-radius:12px;font-size:16px;}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;}
+.hidden{display:none;}
+.section-title{font-weight:bold;margin-top:24px;margin-bottom:10px;font-size:21px;}
+.check-row{display:flex;align-items:center;background:white;margin:7px 0;padding:12px;border-radius:12px;font-size:18px;}
+.check-row input{width:22px;height:22px;margin-right:12px;}
+input,select{width:100%;padding:16px;font-size:20px;border-radius:14px;border:1px solid #ccc;box-sizing:border-box;margin-top:10px;}
+.small{text-align:center;color:#777;font-size:14px;margin-top:18px;}
+</style>
+</head>
+
+<body>
+
+<div id="home">
+  <h1>Panel diario</h1>
+  <div class="sub">Comer, moverte, dormir y seguir sin agobio</div>
+
+  <div class="grid big">
+    <button onclick="openSection('foodMenu')">🍽 Comer</button>
+    <button class="blue" onclick="openSection('healthMenu')">⚖️ Salud</button>
+    <button class="green" onclick="openPantry()">🛒 Despensa</button>
+    <button class="secondary" onclick="openSection('dataMenu')">⚙️ Datos</button>
+  </div>
+</div>
+
+<div id="foodMenu" class="hidden">
+  <button class="secondary" onclick="goHome()">← Volver</button>
+  <h1>Comer</h1>
+  <div class="grid">
+    <button onclick="openMeal('desayuno')">Desayuno</button>
+    <button onclick="openMeal('almuerzo')">Almuerzo</button>
+    <button onclick="openMeal('comida')">Comida</button>
+    <button onclick="openMeal('merienda')">Merienda</button>
+    <button onclick="openMeal('cena')">Cena</button>
+    <button onclick="openMeal('ansiedad')">Ansiedad</button>
+    <button onclick="openMeal('nococinar')">No cocinar</button>
+    <button class="blue" onclick="openImprovisar()">Improvisar</button>
+  </div>
+</div>
+
+<div id="healthMenu" class="hidden">
+  <button class="secondary" onclick="goHome()">← Volver</button>
+  <h1>Salud</h1>
+  <div class="grid">
+    <button class="orange" onclick="openWeight()">Registrar peso</button>
+    <button class="secondary" onclick="showWeightHistory()">Ver peso</button>
+    <button class="purple" onclick="openSleep()">Registrar sueño</button>
+    <button class="secondary" onclick="showSleepHistory()">Ver sueño</button>
+    <button class="blue" onclick="openExercise()">Ejercicio de hoy</button>
+    <button class="secondary" onclick="showExerciseHistory()">Ver ejercicio</button>
+  </div>
+</div>
+
+<div id="dataMenu" class="hidden">
+  <button class="secondary" onclick="goHome()">← Volver</button>
+  <h1>Datos</h1>
+  <div class="grid">
+    <button class="green" onclick="exportData()">Exportar JSON</button>
+    <button class="blue" onclick="importData()">Importar JSON</button>
+    <button class="secondary" onclick="showTodaySummary()">Resumen de hoy</button>
+    <button class="secondary" onclick="showMealsHistory()">Ver comidas</button>
+    <button class="danger" onclick="resetWeek()">Resetear comidas</button>
+    <button class="danger" onclick="resetPantry()">Vaciar despensa</button>
+  </div>
+</div>
+
+<div id="mealScreen" class="hidden">
+  <button class="secondary" onclick="openSection('foodMenu')">← Volver</button>
+  <div id="mealResult" class="card"></div>
+</div>
+
+<div id="pantryScreen" class="hidden">
+  <button class="secondary" onclick="goHome()">← Volver</button>
+  <h1>Despensa</h1>
+  <div class="sub">Marca lo que tienes. Se guarda solo.</div>
+  <div id="pantryList"></div>
+</div>
+
+<div id="missingScreen" class="hidden">
+  <button class="secondary" onclick="backToMeal()">← Volver</button>
+  <h1>¿Qué no tienes?</h1>
+  <div class="sub">Márcalo y lo quito de la despensa</div>
+  <div id="missingList"></div>
+  <button class="danger" onclick="removeMissingItems()" style="width:100%;margin-top:18px;">Quitar de despensa</button>
+</div>
+
+<div id="weightScreen" class="hidden">
+  <button class="secondary" onclick="openSection('healthMenu')">← Volver</button>
+  <h1>Registrar peso</h1>
+  <div class="sub">Altura fija: 1,78 m</div>
+  <div class="card">
+    <input id="weightInput" type="number" step="0.1" placeholder="Ej: 109.4">
+    <button class="orange" onclick="saveWeight()" style="width:100%;margin-top:16px;">Guardar peso</button>
+    <div id="weightResult"></div>
+  </div>
+</div>
+
+<div id="sleepScreen" class="hidden">
+  <button class="secondary" onclick="openSection('healthMenu')">← Volver</button>
+  <h1>Registrar sueño</h1>
+  <div class="card">
+    <input id="sleepHours" type="number" step="0.5" placeholder="Horas dormidas. Ej: 5.5">
+    <select id="sleepQuality">
+      <option value="mala">Calidad mala</option>
+      <option value="regular">Calidad regular</option>
+      <option value="buena">Calidad buena</option>
+    </select>
+    <button class="purple" onclick="saveSleep()" style="width:100%;margin-top:16px;">Guardar sueño</button>
+    <div id="sleepResult"></div>
+  </div>
+</div>
+
+<div id="exerciseScreen" class="hidden">
+  <button class="secondary" onclick="openSection('healthMenu')">← Volver</button>
+  <h1>Ejercicio de hoy</h1>
+  <div id="exerciseResult" class="card"></div>
+</div>
+
+<div class="small">Todo se guarda en este navegador del móvil.</div>
+
+<script>
+const HEIGHT = 1.78;
+
+const pantryGroups = {
+  "Proteínas": ["Huevos","Pollo","Filetes de pollo","Hamburguesas de pollo","Pavo fiambre","Pavo cocido","Jamón cocido","Jamón serrano","Cerdo","Filetes de cerdo","Hamburguesas de cerdo","Hamburguesas de ternera","Carne picada","Ternera","Atún en lata","Anchoas","Mejillones"],
+  "Lácteos": ["Leche","Yogur griego","Yogures","Queso fresco","Quesos"],
+  "Bases": ["Garbanzos","Lentejas","Alubias","Arroz microondas","Pasta","Patata","Boniato","Maíz","Guisantes"],
+  "Verduras": ["Tomate","Cebolla","Lechuga","Espinacas frescas","Brócoli","Zanahoria","Calabacín","Champiñones","Setas"],
+  "Extras": ["Pan de molde","Pan integral","Picos integrales","Chocolate","Mermelada","Mantequilla","Frutos secos","Chorizo","Bacon"]
+};
+
+function meal(title, required, optional, text, notice){
+  return {title, required, optional, text, notice};
+}
+
+const meals = {
+  desayuno:[
+    meal("Tortilla rápida",["Huevos"],["Jamón cocido","Jamón serrano","Quesos"],"Tortilla francesa con lo que tengas para acompañar.","Buen desayuno para evitar empezar con azúcar."),
+    meal("Yogur griego saciante",["Yogur griego"],["Mermelada","Chocolate","Frutos secos"],"Yogur griego con algún extra controlado.","Si usas frutos secos, solo ración cerrada."),
+    meal("Tostada salada",["Pan integral"],["Queso fresco","Tomate","Jamón cocido","Pavo fiambre"],"Pan integral con proteína o queso.","Mejor que galletas o bollería."),
+    meal("Huevos con queso",["Huevos"],["Quesos","Queso fresco"],"Huevos revueltos o tortilla con queso.","Rápido y saciante."),
+    meal("Leche con algo controlado",["Leche"],["Chocolate","Pan de molde","Mermelada"],"Leche con un acompañamiento pequeño.","No convertirlo en desayuno de galletas sin control.")
+  ],
+  almuerzo:[
+    meal("Queso fresco con picos",["Queso fresco"],["Tomate","Picos integrales"],"Queso fresco con algo crujiente medido.","Los picos acompañan, no bolsa libre."),
+    meal("Atún rápido",["Atún en lata"],["Tomate","Pan integral","Picos integrales"],"Atún con tomate o pan/picos medidos.","Opción rápida y salada."),
+    meal("Pavo con queso",["Pavo fiambre"],["Quesos","Queso fresco"],"Pavo en fiambre con queso.","Rápido y sin cocinar.")
+  ],
+  comida:[
+    meal("Garbanzos fríos con atún",["Garbanzos","Atún en lata"],["Tomate","Cebolla","Maíz"],"Garbanzos fríos + atún + extras frescos si tienes.","Muy buena comida base para ti."),
+    meal("Lentejas con toque",["Lentejas"],["Chorizo","Bacon","Zanahoria","Cebolla"],"Lentejas con un toque de sabor.","Chorizo/bacon como sabor, no como base."),
+    meal("Hamburguesa de pollo razonable",["Hamburguesas de pollo"],["Lechuga","Tomate","Patata","Boniato","Quesos"],"Hamburguesa de pollo con acompañamiento razonable.","Evita sumar bacon + queso + pan + picos todo junto."),
+    meal("Hamburguesa de cerdo razonable",["Hamburguesas de cerdo"],["Lechuga","Tomate","Patata","Boniato"],"Hamburguesa de cerdo con ensalada o base saciante.","Comida válida si no la conviertes en combo pesado."),
+    meal("Arroz con huevos",["Arroz microondas","Huevos"],["Champiñones","Cebolla","Maíz"],"Arroz microondas + huevos + extras.","Rápido, caliente y saciante."),
+    meal("Pollo con arroz",["Pollo","Arroz microondas"],["Calabacín","Champiñones","Cebolla"],"Pollo + arroz + verdura si tienes.","Simple y efectivo."),
+    meal("Filetes de cerdo con ensalada",["Filetes de cerdo"],["Lechuga","Tomate","Patata"],"Filetes de cerdo con algo fresco o patata.","Proteína clara + volumen.")
+  ],
+  merienda:[
+    meal("Yogur con mermelada",["Yogur griego"],["Mermelada","Chocolate"],"Yogur griego con algo dulce controlado.","Mejor que abrir galletas sin control."),
+    meal("Leche con algo dulce",["Leche"],["Mermelada","Chocolate"],"Vaso de leche con algo dulce.","Útil si buscas dulce."),
+    meal("Pavo con queso",["Pavo fiambre"],["Quesos","Tomate"],"Pavo fiambre con queso o tomate.","Merienda salada y saciante.")
+    meal("Jamón serrano con queso",["Jamón serrano","Quesos"],["Picos integrales"],"Jamón serrano + queso. Añade picos integrales si tienes.","Si metes picos, que sean acompañamiento medido."
+
+)
+  ],
+  cena:[
+    meal("Tortilla con extras",["Huevos"],["Espinacas frescas","Queso fresco","Champiñones"],"Tortilla francesa con extras si tienes.","Cena rápida y sin complicarte."),
+    meal("Atún con ensalada",["Atún en lata"],["Lechuga","Tomate","Cebolla","Maíz"],"Atún con ensalada o lo fresco que tengas.","Si falta saciedad, añade patata o picos medidos."),
+    meal("Hamburguesa sin liarla",["Hamburguesas de pollo"],["Calabacín","Champiñones","Lechuga","Tomate"],"Hamburguesa con verdura o ensalada.","Evita pan+bacon+queso+picos en combo."),
+    meal("Huevos con champiñones",["Huevos"],["Champiñones","Quesos"],"Huevos revueltos con champiñones o queso.","Caliente y saciante."),
+    meal("Queso fresco con tomate",["Queso fresco"],["Tomate","Picos integrales","Jamón serrano"],"Queso fresco con tomate o acompañamiento medido.","Cena fría y rápida.")
+  ],
+  ansiedad:[
+    meal("Kit dulce controlado",["Yogur griego"],["Chocolate","Mermelada"],"Yogur griego con algo dulce controlado.","Primero esto. Luego espera 10 minutos."),
+    meal("Kit salado rápido",["Queso fresco"],["Pavo fiambre","Jamón cocido","Picos integrales"],"Queso fresco con algo salado.","No comer picos desde la bolsa."),
+    meal("Frutos secos con control",["Frutos secos"],[],"Solo si separas una ración pequeña en un cuenco.","Para ti son alimento de alto riesgo."),
+    meal("Mate + proteína",["Yogur griego"],[],"Mate o infusión + yogur griego.","Líquido caliente + proteína suele bajar el impulso.")
+  ],
+  nococinar:[
+    meal("Garbanzos fríos",["Garbanzos"],["Tomate","Cebolla","Atún en lata","Anchoas"],"Garbanzos fríos con lo que tengas.","Cero cocina y muy válido."),
+    meal("Ensalada montada",["Lechuga"],["Tomate","Atún en lata","Queso fresco","Maíz"],"Lechuga con proteína o queso si tienes.","Rápido y bastante saciante."),
+    meal("Lácteo completo",["Yogur griego"],["Mermelada","Chocolate"],"Yogur griego con extra dulce controlado.","Útil para no caer en galletas."),
+    meal("Plato frío salado",["Queso fresco"],["Jamón serrano","Tomate","Picos integrales"],"Queso fresco con salado o picos medidos.","Satisfactorio y rápido.")
+  ]
+};
+
+const reminders = {
+  desayuno:["☀️ Proteína temprano = menos ansiedad después.","💧 Bebe algo al levantarte."],
+  almuerzo:["🧠 Esto es para llegar mejor a la comida.","💧 Un vaso de agua y sigues."],
+  comida:["🍽️ Mejor comer bien ahora que picar toda la tarde.","💧 Agua antes de comer."],
+  merienda:["🍫 Dulce sí, pero controlado.","🧠 Merendar bien evita el ataque nocturno."],
+  cena:["💤 Dormir bien ayuda a tener menos hambre mañana.","💧 Vaso de agua antes de cenar.","🌙 Cena razonable y a intentar acostarte antes."],
+  ansiedad:["⏳ Come esto y espera 10 minutos.","⚠️ Frutos secos nunca desde la bolsa.","🧠 No es fuerza de voluntad: es ponértelo fácil."],
+  nococinar:["✅ No cocinar no significa comer mal.","🧠 Simple y decente gana a improvisar basura."],
+  improvisar:["🎲 Improvisar sí, pero con cabeza.","🧠 Mejor esto que picar sin control."]
+};
+
+const exercisesGoodSleep = ["Caminar 60 minutos.","Bicicleta 30 minutos.","TRX 20 minutos.","Fuerza suave 25 minutos.","Caminar 40 minutos + movilidad 10 minutos."];
+const exercisesBadSleep = ["Caminar 20 minutos suave.","Movilidad 10 minutos.","Paseo tranquilo 30 minutos.","Estiramientos 10 minutos.","Mínimo viable: 15 minutos andando."];
+
+let currentType = "";
+let currentMeal = null;
+let currentExercise = null;
+
+function hideAll(){
+  ["home","foodMenu","healthMenu","dataMenu","mealScreen","pantryScreen","missingScreen","weightScreen","sleepScreen","exerciseScreen"]
+    .forEach(id=>document.getElementById(id).classList.add("hidden"));
+}
+
+function goHome(){
+  hideAll();
+  document.getElementById("home").classList.remove("hidden");
+}
+
+function openSection(id){
+  hideAll();
+  document.getElementById(id).classList.remove("hidden");
+}
+
+function today(){
+  return new Date().toISOString().slice(0,10);
+}
+
+function getData(k){
+  return JSON.parse(localStorage.getItem(k)||"[]");
+}
+
+function setData(k,d){
+  localStorage.setItem(k,JSON.stringify(d));
+}
+
+function getPantry(){
+  return getData("pantry");
+}
+
+function openPantry(){
+  hideAll();
+  document.getElementById("pantryScreen").classList.remove("hidden");
+  renderPantry();
+}
+
+function renderPantry(){
+  const saved=getPantry();
+  document.getElementById("pantryList").innerHTML=Object.entries(pantryGroups).map(([group,items])=>`
+    <div class="section-title">${group}</div>
+    ${items.map(item=>`
+      <label class="check-row">
+        <input type="checkbox" value="${item}" ${saved.includes(item)?"checked":""} onchange="autoSavePantry()">
+        <span>${item}</span>
+      </label>
+    `).join("")}
+  `).join("");
+}
+
+function autoSavePantry(){
+  const checked=[...document.querySelectorAll("#pantryList input:checked")].map(i=>i.value);
+  setData("pantry",checked);
+}
+
+function resetPantry(){
+  if(confirm("¿Vaciar despensa?")){
+    localStorage.removeItem("pantry");
+    alert("Despensa vaciada.");
+  }
+}
+
+function hasRequired(m){
+  const pantry=getPantry();
+  return m.required.every(i=>pantry.includes(i));
+}
+
+function availableOptional(m){
+  const pantry=getPantry();
+  return m.optional.filter(i=>pantry.includes(i));
+}
+
+function mealText(m){
+  const opts=availableOptional(m);
+  if(opts.length) return `${m.text}<br><br><b>Extras que tienes:</b> ${opts.join(", ")}.`;
+  return m.text;
+}
+
+function openMeal(type){
+  currentType=type;
+  hideAll();
+  document.getElementById("mealScreen").classList.remove("hidden");
+  generateMeal(type);
+}
+
+function generateMeal(type){
+  const history=getData("mealHistory").map(h=>h.title);
+  let options=meals[type].filter(m=>hasRequired(m) && !history.includes(m.title));
+
+  if(!options.length) options=meals[type].filter(m=>hasRequired(m));
+
+  if(currentMeal && options.length>1){
+    options=options.filter(m=>m.title!==currentMeal.title);
+  }
+
+  if(!options.length){
+    renderMeal({
+      title:"No hay suficientes opciones",
+      required:[],
+      optional:[],
+      text:"Marca más alimentos en despensa o usa Improvisar.",
+      notice:"Ahora la app usa ingredientes obligatorios y opcionales para bloquearse menos."
+    });
+    return;
+  }
+
+  currentMeal=options[Math.floor(Math.random()*options.length)];
+  renderMeal(currentMeal);
+}
+
+function renderMeal(m){
+  currentMeal=m;
+  document.getElementById("mealResult").innerHTML=`
+    <div class="title">${m.title}</div>
+    <div class="text">${mealText(m)}</div>
+    <div class="notice">${m.notice}</div>
+    <div class="reminder">${randomReminder()}</div>
+    <div class="actions">
+      <button onclick="acceptMeal()">Me vale</button>
+      <button class="secondary" onclick="generateAnother()">Dame otra</button>
+      <button class="danger" onclick="openMissing()">No tengo algo</button>
+      <button class="secondary" onclick="saveFavorite()">Favorita</button>
+    </div>
+  `;
+}
+
+function randomReminder(){
+  const list=reminders[currentType]||reminders.comida;
+  return list[Math.floor(Math.random()*list.length)];
+}
+
+function generateAnother(){
+  currentType==="improvisar" ? openImprovisar() : generateMeal(currentType);
+}
+
+function acceptMeal(){
+  const h=getData("mealHistory");
+  h.push({date:new Date().toISOString(),day:today(),type:currentType,title:currentMeal.title});
+  setData("mealHistory",h);
+  alert("Guardado.");
+}
+
+function showMealsHistory(){
+  const h=getData("mealHistory");
+  if(!h.length){
+    alert("No hay comidas guardadas.");
+    return;
+  }
+  alert(h.slice(-15).map(x=>`• ${new Date(x.date).toLocaleDateString("es-ES")} | ${x.type}: ${x.title}`).join("\n"));
+}
+
+function saveFavorite(){
+  const f=getData("favorites");
+  f.push(currentMeal);
+  setData("favorites",f);
+  alert("Favorita guardada.");
+}
+
+function resetWeek(){
+  if(confirm("¿Resetear comidas guardadas?")){
+    localStorage.removeItem("mealHistory");
+    alert("Reseteado.");
+  }
+}
+
+function openImprovisar(){
+  currentType="improvisar";
+  hideAll();
+  document.getElementById("mealScreen").classList.remove("hidden");
+  const ideas=buildImprovisedMeals();
+  currentMeal=ideas[Math.floor(Math.random()*ideas.length)];
+  renderMeal(currentMeal);
+}
+
+function inPantry(i){
+  return getPantry().includes(i);
+}
+
+function opt(items){
+  return items.filter(inPantry);
+}
+
+function buildImprovisedMeals(){
+  const ideas=[];
+
+  if(inPantry("Garbanzos")) ideas.push(meal("Improvisación de garbanzos",["Garbanzos"],opt(["Atún en lata","Tomate","Cebolla","Maíz","Anchoas"]),"Garbanzos fríos con lo que tengas.","Rápido y saciante."));
+  if(inPantry("Huevos")) ideas.push(meal("Tortilla improvisada",["Huevos"],opt(["Queso fresco","Jamón cocido","Jamón serrano","Espinacas frescas","Champiñones"]),"Tortilla francesa con extras disponibles.","Proteína rápida."));
+  if(inPantry("Arroz microondas")) ideas.push(meal("Bowl de arroz",["Arroz microondas"],opt(["Atún en lata","Huevos","Mejillones","Maíz","Champiñones"]),"Arroz microondas con proteína o extras.","Mejor que tirar de snacks."));
+  if(inPantry("Yogur griego")) ideas.push(meal("Yogur anti-ansiedad",["Yogur griego"],opt(["Mermelada","Chocolate","Frutos secos"]),"Yogur griego con extra controlado.","Si hay frutos secos, ración cerrada."));
+
+  const burgers=["Hamburguesas de pollo","Hamburguesas de cerdo","Hamburguesas de ternera"].filter(inPantry);
+  if(burgers.length) ideas.push(meal("Hamburguesa rápida",[burgers[0]],opt(["Lechuga","Tomate","Calabacín","Champiñones","Patata","Boniato"]),"Hamburguesa con acompañamiento disponible.","No convertirla en combo bomba."));
+
+  if(!ideas.length) ideas.push(meal("Primero marca despensa",[],[],"Marca lo que tienes para poder improvisar mejor.","La app necesita saber qué hay en casa."));
+
+  return ideas;
+}
+
+function openMissing(){
+  const items=[...(currentMeal.required||[]),...(availableOptional(currentMeal)||[])];
+  if(!items.length){
+    alert("No hay ingredientes concretos.");
+    return;
+  }
+
+  hideAll();
+  document.getElementById("missingScreen").classList.remove("hidden");
+  document.getElementById("missingList").innerHTML=items.map(i=>`
+    <label class="check-row"><input type="checkbox" value="${i}"><span>${i}</span></label>
+  `).join("");
+}
+
+function removeMissingItems(){
+  const missing=[...document.querySelectorAll("#missingList input:checked")].map(i=>i.value);
+  if(!missing.length){
+    alert("Marca al menos uno.");
+    return;
+  }
+
+  const pantry=getPantry().filter(i=>!missing.includes(i));
+  setData("pantry",pantry);
+  alert("Quitado: "+missing.join(", "));
+  generateAnother();
+}
+
+function backToMeal(){
+  hideAll();
+  document.getElementById("mealScreen").classList.remove("hidden");
+}
+
+function openWeight(){
+  hideAll();
+  document.getElementById("weightScreen").classList.remove("hidden");
+  document.getElementById("weightResult").innerHTML="";
+}
+
+function saveWeight(){
+  const value=parseFloat(document.getElementById("weightInput").value.replace(",","."));
+  if(!value||value<40||value>250){
+    alert("Peso no válido.");
+    return;
+  }
+
+  const w=getData("weights");
+  const prev=w.length?w[w.length-1].weight:null;
+  const bmi=value/(HEIGHT*HEIGHT);
+
+  w.push({date:new Date().toISOString(),day:today(),weight:value,bmi});
+  setData("weights",w);
+
+  let msg="✅ Primer peso guardado. Miramos tendencia.";
+  let diff="Primer registro.";
+
+  if(prev!==null){
+    const d=value-prev, abs=Math.abs(d).toFixed(1);
+    if(d<-0.2){diff=`Has bajado ${abs} kg.`;msg="✅ Bien. Repite lo que funciona.";}
+    else if(d>0.2){diff=`Has subido ${abs} kg.`;msg="⚠️ Puede ser agua, sal, sueño o estrés. No te rayes por un día.";}
+    else{diff="Estás prácticamente igual.";msg="➖ Mantener también cuenta.";}
+  }
+
+  document.getElementById("weightResult").innerHTML=`<div class="notice"><b>Peso:</b> ${value.toFixed(1)} kg<br><b>IMC:</b> ${bmi.toFixed(1)}<br>${diff}</div><div class="reminder">${msg}</div>`;
+}
+
+function showWeightHistory(){
+  const w=getData("weights");
+  if(!w.length){
+    alert("No hay pesos.");
+    return;
+  }
+
+  alert(w.slice(-10).map(x=>`• ${new Date(x.date).toLocaleDateString("es-ES")}: ${x.weight.toFixed(1)} kg | IMC ${x.bmi.toFixed(1)}`).join("\n"));
+}
+
+function openSleep(){
+  hideAll();
+  document.getElementById("sleepScreen").classList.remove("hidden");
+  document.getElementById("sleepResult").innerHTML="";
+}
+
+function saveSleep(){
+  const hours=parseFloat(document.getElementById("sleepHours").value.replace(",","."));
+  const quality=document.getElementById("sleepQuality").value;
+
+  if(!hours||hours<0||hours>14){
+    alert("Horas no válidas.");
+    return;
+  }
+
+  const s=getData("sleeps");
+  s.push({date:new Date().toISOString(),day:today(),hours,quality});
+  setData("sleeps",s);
+
+  const msg=hours<6?"⚠️ Dormiste poco. Hoy comida saciante, agua y movimiento suave.":hours<7?"➖ Sueño justo. Cuidado con compensar con azúcar/café.":"✅ Buen descanso. Hoy puedes moverte mejor.";
+
+  document.getElementById("sleepResult").innerHTML=`<div class="notice"><b>Sueño:</b> ${hours} h<br><b>Calidad:</b> ${quality}</div><div class="reminder">${msg}</div>`;
+}
+
+function showSleepHistory(){
+  const s=getData("sleeps");
+  if(!s.length){
+    alert("No hay sueño registrado.");
+    return;
+  }
+
+  alert(s.slice(-10).map(x=>`• ${new Date(x.date).toLocaleDateString("es-ES")}: ${x.hours} h | ${x.quality}`).join("\n"));
+}
+
+function lastSleep(){
+  const s=getData("sleeps").filter(x=>x.day===today());
+  return s.length?s[s.length-1]:null;
+}
+
+function openExercise(){
+  hideAll();
+  document.getElementById("exerciseScreen").classList.remove("hidden");
+  generateExercise();
+}
+
+function generateExercise(){
+  const sleep=lastSleep();
+  const list=(!sleep||sleep.hours<6)?exercisesBadSleep:exercisesGoodSleep;
+  currentExercise=list[Math.floor(Math.random()*list.length)];
+
+  const reason=!sleep?"No has registrado sueño hoy: propuesta prudente.":sleep.hours<6?"Dormiste poco: cumplir sin machacarte.":"Descanso aceptable: puedes apretar un poco.";
+
+  document.getElementById("exerciseResult").innerHTML=`
+    <div class="title">${currentExercise}</div>
+    <div class="notice">${reason}</div>
+    <div class="reminder">Lo importante es empezar fácil.</div>
+    <div class="actions">
+      <button onclick="saveExerciseDone()">Hecho</button>
+      <button class="secondary" onclick="generateExercise()">Dame otro</button>
+    </div>
+  `;
+}
+
+function saveExerciseDone(){
+  const e=getData("exercises");
+  e.push({date:new Date().toISOString(),day:today(),exercise:currentExercise});
+  setData("exercises",e);
+  alert("Ejercicio guardado.");
+}
+
+function showExerciseHistory(){
+  const e=getData("exercises");
+  if(!e.length){
+    alert("No hay ejercicio.");
+    return;
+  }
+
+  alert(e.slice(-10).map(x=>`• ${new Date(x.date).toLocaleDateString("es-ES")}: ${x.exercise}`).join("\n"));
+}
+
+function showTodaySummary(){
+  const day=today();
+  const w=getData("weights").filter(x=>x.day===day).pop();
+  const s=getData("sleeps").filter(x=>x.day===day).pop();
+  const e=getData("exercises").filter(x=>x.day===day).pop();
+  const m=getData("mealHistory").filter(x=>x.day===day);
+
+  alert(`Resumen de hoy:\n\n⚖️ Peso: ${w?`${w.weight.toFixed(1)} kg`:"sin peso"}\n😴 Sueño: ${s?`${s.hours} h (${s.quality})`:"sin sueño"}\n🏃 Ejercicio: ${e?e.exercise:"sin ejercicio"}\n🍽 Comidas guardadas: ${m.length}\n\nNo hace falta perfecto. Hace falta repetir.`);
+}
+
+function exportData(){
+  const backup = {
+    version: "1.1",
+    exportedAt: new Date().toISOString(),
+    pantry: getData("pantry"),
+    mealHistory: getData("mealHistory"),
+    favorites: getData("favorites"),
+    weights: getData("weights"),
+    sleeps: getData("sleeps"),
+    exercises: getData("exercises")
+  };
+
+  const json = JSON.stringify(backup, null, 2);
+  const blob = new Blob([json], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "copia-panel-salud.json";
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+function importData(){
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/json";
+
+  input.onchange = function(event){
+    const file = event.target.files[0];
+    if(!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function(e){
+      try{
+        const data = JSON.parse(e.target.result);
+
+        if(!confirm("¿Importar esta copia? Se sustituirán los datos actuales.")){
+          return;
+        }
+
+        setData("pantry", data.pantry || []);
+        setData("mealHistory", data.mealHistory || []);
+        setData("favorites", data.favorites || []);
+        setData("weights", data.weights || []);
+        setData("sleeps", data.sleeps || []);
+        setData("exercises", data.exercises || []);
+
+        alert("Copia importada correctamente.");
+        goHome();
+
+      }catch(error){
+        alert("El archivo no parece un JSON válido.");
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
+  input.click();
+}
+</script>
+
+</body>
+</html>
